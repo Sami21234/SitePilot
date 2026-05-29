@@ -78,8 +78,8 @@ Answer displayed in chat UI
 ### Step 1 — Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/webcrawl-rag-chatbot.git
-cd webcrawl-rag-chatbot
+git clone https://github.com/Sami21234/SitePilot.git
+cd SitePilot
 ```
 
 ### Step 2 — Create and activate virtual environment
