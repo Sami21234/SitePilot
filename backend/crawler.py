@@ -217,56 +217,36 @@ from urllib.parse import urljoin, urlparse
 import time
 
 
-def normalize_url(url):
-    url = url.split("#")[0]
-
-    if url.endswith("/index.html"):
-        url = url[:-11]
-
-    return url.rstrip("/")
-
-
 def is_valid_url(url, base_domain):
     parsed = urlparse(url)
 
-    return (
-        parsed.scheme in ("http", "https")
-        and parsed.netloc == base_domain
-        and not any(
-            url.lower().endswith(ext)
-            for ext in [
-                ".pdf",
-                ".jpg",
-                ".jpeg",
-                ".png",
-                ".gif",
-                ".zip",
-                ".css",
-                ".js",
-            ]
-        )
+    if parsed.scheme not in ("http", "https"):
+        return False
+
+    if parsed.netloc != base_domain:
+        return False
+
+    blocked_extensions = (
+        ".pdf", ".jpg", ".jpeg", ".png",
+        ".gif", ".zip", ".css", ".js"
     )
+
+    return not url.lower().endswith(blocked_extensions)
 
 
 def clean_text(soup):
-    for tag in soup(
-        [
-            "script",
-            "style",
-            "nav",
-            "footer",
-            "header",
-            "aside",
-        ]
-    ):
+    # Remove unwanted tags
+    for tag in soup([
+        "script",
+        "style",
+        "nav",
+        "footer",
+        "header",
+        "aside"
+    ]):
         tag.decompose()
 
-    main = soup.find("main") or soup.find("article")
-
-    if main:
-        text = main.get_text(separator=" ", strip=True)
-    else:
-        text = soup.get_text(separator=" ", strip=True)
+    text = soup.get_text(separator=" ", strip=True)
 
     lines = [
         line.strip()
@@ -278,17 +258,15 @@ def clean_text(soup):
 
 
 def crawl_website(start_url, max_pages=20):
-    start_url = normalize_url(start_url)
-
     visited = set()
-    to_visit = [start_url]
+    queue = [start_url]
     results = []
 
     base_domain = urlparse(start_url).netloc
 
-    while to_visit and len(visited) < max_pages:
+    while queue and len(visited) < max_pages:
 
-        url = normalize_url(to_visit.pop(0))
+        url = queue.pop(0)
 
         if url in visited:
             continue
@@ -300,28 +278,24 @@ def crawl_website(start_url, max_pages=20):
                 url,
                 timeout=10,
                 headers={
-                    "User-Agent": (
-                        "Mozilla/5.0 "
-                        "(Windows NT 10.0; Win64; x64) "
-                        "AppleWebKit/537.36 "
-                        "(KHTML, like Gecko) "
-                        "Chrome/120.0 Safari/537.36"
-                    )
-                },
+                    "User-Agent":
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+                }
             )
 
             print("Status Code:", response.status_code)
+            print("Final URL:", response.url)
 
             if response.status_code != 200:
-                print(f"[Skipped] Status {response.status_code}")
                 continue
 
             content_type = response.headers.get(
                 "Content-Type", ""
             )
 
+            print("Content-Type:", content_type)
+
             if "text/html" not in content_type:
-                print("[Skipped] Non-HTML page")
                 continue
 
             soup = BeautifulSoup(
@@ -333,21 +307,20 @@ def crawl_website(start_url, max_pages=20):
 
             print("Text Length:", len(text))
 
-            if len(text) < 100:
-                print("[Skipped] Too little content")
+            if len(text) < 50:
+                print("[Skipped] Too little text")
                 continue
 
-            title = (
-                soup.title.get_text(strip=True)
-                if soup.title
-                else ""
-            )
+            title = ""
+
+            if soup.title:
+                title = soup.title.get_text(strip=True)
 
             results.append(
                 {
                     "url": url,
                     "title": title,
-                    "text": text,
+                    "text": text
                 }
             )
 
@@ -358,39 +331,33 @@ def crawl_website(start_url, max_pages=20):
                 f"({len(text)} chars)"
             )
 
-            for link in soup.find_all(
-                "a",
-                href=True
-            ):
+            for link in soup.find_all("a", href=True):
+
                 absolute = urljoin(
                     response.url,
                     link["href"]
                 )
 
-                absolute = normalize_url(
-                    absolute
-                )
+                absolute = absolute.split("#")[0]
 
                 if (
                     absolute not in visited
-                    and absolute not in to_visit
+                    and absolute not in queue
                     and is_valid_url(
                         absolute,
                         base_domain
                     )
                 ):
-                    to_visit.append(absolute)
+                    queue.append(absolute)
 
             time.sleep(0.5)
 
         except Exception as e:
-            print(f"[Error] {url}")
-            print(e)
+            print("[Error]", e)
 
     print(
         f"\n[Done] Crawled "
-        f"{len(results)} pages "
-        f"from {base_domain}"
+        f"{len(results)} pages"
     )
 
     return results
@@ -407,5 +374,5 @@ if __name__ == "__main__":
         print("\n" + "=" * 80)
         print("URL:", page["url"])
         print("TITLE:", page["title"])
-        print("TEXT PREVIEW:")
+        print("TEXT:")
         print(page["text"][:300])
