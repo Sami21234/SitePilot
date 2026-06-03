@@ -84,3 +84,59 @@ def embed_and_store(chunks, collection_name = "sitepilot"):
 
     print(f"Stored {len(texts)} chunks in ChromaDB")
     return collection
+
+# Now, creating the query_collection() function which is used for searching.
+
+def query_collection(question, collection_name = "sitepilot", n_results = 3):
+    collection = get_chroma_collection(collection_name)     # Open DB.
+    question_embedding = model.encode(      # Takes the question and converts them into vectors
+        [question],
+        convert_to_numpy=True
+    )[0].tolist()
+
+    results = collection.query(     # used to find the nearest vectors
+        query_embeddings = [question_embedding],
+        n_results = n_results,      # returns top 3 matches.
+        include = ["documents", "metadatas", "distances"]
+    )
+    return results
+
+# main testing block 
+if __name__ == "___main__":
+    from crawler import crawl_website
+    from chunker import chunk_pages
+
+    print("Step 1: Crawling website...")
+    pages = crawl_website(      # Websites --> pages.
+        "https://books.toscrape.com",
+        max_pages=5
+    )
+
+    print("\nStep 2: Chunking pages...")
+    chunks = chunk_pages(pages)     # Pages --> chunks.
+    print(f"Created {len(chunks)} chunks")
+
+    print("\nStep 3: Embedding and storing...")
+    collection = embed_and_store(chunks)        # Chunks --> vectors.(store in Chroma)
+
+    print("\nStep 4: Testing retrieval...")
+    test_questions = [      # testing queries
+        "What books are available?",
+        "What is the price of A Light in the Attic?",
+        "Tell me about Sharp Objects"
+    ]
+
+    for question in test_questions:
+        print(f"\nQuestion: {question}")
+        results = query_collection(question)        # Retrieve relevant chunks.
+
+        for i, (doc, meta, dist) in enumerate(zip(
+            results["documents"][0],
+            results["metadatas"][0],
+            results["distances"][0]
+        )):
+            similarity = 1 - dist       # Convert distance to similarity.(higher similarity is better)
+            print(f"  Result {i+1} "
+                  f"(similarity: {similarity:.3f}): "
+                  f"{doc[:100]}...")
+            print(f"  Source: {meta['source']}")
