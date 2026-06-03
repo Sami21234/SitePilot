@@ -1,5 +1,5 @@
 
-import chroma_db
+import chromadb
 from chromadb.config import Settings        # Configuration settings for ChromaDB.
 from sentence_transformers import SentenceTransformer       # loads embedding model.(example--> "What is AI?" into: [0.12, -0.55, 0.88, ...])
 import os       # used for file paths.
@@ -8,7 +8,7 @@ MODEL_NAME = "all-MiniLM-L6-v2"
 CHROMA_DIR = os.path.join(
     os.path.dirname(__file__),
     "..",
-    "chroma-db"
+    "chroma_db"
 )
 
 '''
@@ -48,7 +48,7 @@ def get_chroma_collection(collection_name="sitepilot"):
 
 def embed_and_store(chunks, collection_name = "sitepilot"):
     collection = get_chroma_collection(collection_name)   # get the collection to store the vectors.
-    texts = [chunks["text"] for chunk in chunks]        # Extracts the texts
+    texts = [chunk["text"] for chunk in chunks]        # Extracts the texts
     metadatas = [       # Extracts metadata
         {
             "source": chunk["source"],
@@ -102,7 +102,7 @@ def query_collection(question, collection_name = "sitepilot", n_results = 3):
     return results
 
 # main testing block 
-if __name__ == "___main__":
+if __name__ == "__main__":
     from crawler import crawl_website
     from chunker import chunk_pages
 
