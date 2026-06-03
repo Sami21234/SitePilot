@@ -46,3 +46,41 @@ def get_chroma_collection(collection_name="sitepilot"):
 
 # Now, creating the main storage funciton.
 
+def embed_and_store(chunks, collection_name = "sitepilot"):
+    collection = get_chroma_collection(collection_name)   # get the collection to store the vectors.
+    texts = [chunks["text"] for chunk in chunks]        # Extracts the texts
+    metadatas = [       # Extracts metadata
+        {
+            "source": chunk["source"],
+            "title": chunk["title"],
+            "chunk_index": chunk["chunk_index"]
+        }
+        for chunk in chunks
+    ]
+    ids = [     # Creates IDs, so that every chunk gets unique ID.
+        f"{chunk['source']}__chunk_{chunk['chunk_index']}"
+        for chunk in chunks
+    ]
+
+    print(f"Embedding {len(texts)} chunks...")
+
+    # Now, generating the embeddings
+    embeddings = model.encode(      # example --> "AI is a field of study", then --> [0.212,-0.334, 0.992,...]
+        texts,
+        batch_size=32,      #  Encode 32 chunks at once.
+        show_progress_bar=True,     # Shows progress bar while processing.
+        convert_to_numpy=True       # returns numpy array.
+    )
+
+    embeddings_list = embeddings.tolist()       # converts the embeddings to the python lists, cause chroma excepts normal python lists.
+
+    # Now, storing everything
+    collection.upsert(
+        documents = texts,      # Actual chunk text.
+        embeddings = embeddings_list,       # vectors list.
+        metadatas = metadatas,      # source information.
+        ids = ids       # ids for chunks for unique indentifiers.
+    )
+
+    print(f"Stored {len(texts)} chunks in ChromaDB")
+    return collection
