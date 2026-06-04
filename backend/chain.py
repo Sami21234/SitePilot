@@ -42,5 +42,40 @@ def build_rag_chain(collection_name = "sitepilot", n_results = 3, temperature = 
     llm = Ollama(       # It creates local AI model
         model = "mistral",
         temperature = temperature,      # used to control creativity(Very factual, less hallucination)
-        num_ctx = 4096      # A context window, where llm can read 4096 tokens at once.
+        num_ctx = 4096      # A context window(maximum amount of information llm can process at a single time), where llm can read 4096 tokens at once.
     )
+
+    # Prommpt template for RAG chain, this controls AI behaviour.
+    prompt_template = """You are SitePilot, a helpful assistant \ that answers questions about a website.
+Use ONLY the below to answer the question.
+If the answer is not in the context, say excatly:
+"I don't have information about that on this website."
+
+Do not make up information.     
+Do not use your general knowledge.
+Keep your answer concise and direct.
+
+Context:
+{context}
+
+Question:
+{question}
+
+Answer:"""
+
+    prompt = prompt_template(      
+        template = prompt_template,      # turns the above text into reusable template.
+        input_variables = ["context", "question"]
+    )
+
+    # Building RAG Chain
+    chain = RetrievalQA.from_chain_type(        # This creates complete RAG system.
+        llm = llm,      # uses Mistral
+        chain_type = "stuff",        # Stuff means: Retrieve chunks --> Concatenate them --> Send all to LLM
+        retriever = retriever,
+        return_source_documents = True,     # It returns Answers + Source Chunks for citations.(citation means reference that proves where AI got its information)
+        chain_type_kwargs = {"prompt": prompt}
+    )
+
+    return chain        # returns completed RAG system.
+
