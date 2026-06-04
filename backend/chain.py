@@ -100,3 +100,26 @@ def ask(chain, question):
         "answer": answer,
         "sources": sources
     }
+
+# main testing block
+if __name__ == "__main__":
+
+    from embedder import embed_and_store
+    from crawler import crawl_website
+    from chunker import chunker_pages
+
+    print("Building RAG Chain...")
+    chiain = build_rag_chain()
+
+    test_question = [
+        "What is the price of A Light in the Attic?",
+        "Tell me about Sharp Objects book",
+        "What is the most expensive book?",
+        "Do you sell electronics?"
+    ] 
+
+    for question in test_question:
+        response = ask(chiain, question)        # runs full RAG pipeline for each question and gets the answer + sources.
+        print(f"\nAnswer: {response['answer']}")        # shows AI generated answer.
+        print(f"Sources: {response['sources']}")        # shows the retrieved chunks(pages) that were used to generate the answer.
+        print("-" * 60)
