@@ -79,3 +79,24 @@ Answer:"""
 
     return chain        # returns completed RAG system.
 
+# Now, creating the ask() fucntion, to ask the questions.
+
+def ask(chain, question):
+    print(f"\nQuestion: {question}")        # Displays the query.
+    print("Thinking...")
+
+    result = chain.invoke({"query": question})      # This is where everything happens.(Question --> Embed Question --> Search Chroma --> Get Chunks --> Build Prompt --> Call Mistral --> Return Answer)
+
+    answer = result["result"]       # Extracts the answer
+    sources = result["source_documents"]        # Gets retrieved chunks.
+
+    # now, removing the duplicate pages, sources...etc.
+    unique_sources = list(set(
+        doc.metadata.get("source", "unknown")
+        for doc in sources
+    ))
+
+    return {
+        "answer": answer,
+        "sources": sources
+    }
