@@ -11,6 +11,10 @@ CHROMA_DIR = os.path.join(
     "chroma_db"
 )
 
+print("Embedder CHROMA_DIR:", CHROMA_DIR)
+
+model = SentenceTransformer(MODEL_NAME)
+
 '''
 It creates a path:
 
@@ -118,6 +122,10 @@ if __name__ == "__main__":
 
     print("\nStep 3: Embedding and storing...")
     collection = embed_and_store(chunks)        # Chunks --> vectors.(store in Chroma)
+
+    collection = embed_and_store(chunks)
+
+    print("Embedder count:", collection.count())
 
     print("\nStep 4: Testing retrieval...")
     test_questions = [      # testing queries
