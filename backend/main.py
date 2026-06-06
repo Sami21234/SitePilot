@@ -161,7 +161,9 @@ async def reset_endpoint():
 
     try:
         collection = get_chroma_collection("sitepilot")     # gets the ChromaDB collection.
-        collection.delete()      # deletes all data from the collection.
+        collection.delete(
+            where = {"source": {"$ne": ""}}
+        )      # deletes all data from the collection.
 
         rag_chain = None     # resets the RAG chain.
         current_url = None   # resets the currently indexed URL.

@@ -7,6 +7,7 @@ from langchain_huggingface import HuggingFaceEmbeddings     # loading the embedd
 from langchain_classic.chains import RetrievalQA        # Prebuilt RAG pipeline
 from langchain_core.prompts import PromptTemplate     # To create custom prompt template for RAG chain.
 from chromadb.config import Settings
+from database import get_client
 
 # Constants
 CHROMA_DIR = os.path.join(
@@ -21,22 +22,17 @@ MODEL_NAME = "all-MiniLM-L6-v2"     # embedding module
 
 # Creating the entire RAG pipeline
 def build_rag_chain(collection_name = "sitepilot", n_results = 3, temperature = 0.1):
+    
     embeddings = HuggingFaceEmbeddings(
         model_name = MODEL_NAME,
         model_kwargs = {"device": "cpu"},      # This makes embedding the query vector significantly faster than CPU(requires GPU).
         encode_kwargs = {"normalize_embeddings": True}      # Normalizes vectors. Helpful for cosine similarity.
     )
 
-    client = chromadb.PersistentClient(path = CHROMA_DIR)     # PersistentClient means Data(vectors) are saved to the disk at CHROMA_DIR. even after restarting it persists
-    print("Collections:")
-    for c in client.list_collections():
-        print(c.name)
-    collection = client.get_collection("sitepilot")
 
-    print("Raw count:", collection.count())
 
     vectorstore = Chroma(       # Loads vector database.
-        client=client,
+        client=get_client(),     # uses the shared ChromaDB client instance.
         collection_name = collection_name,
         embedding_function = embeddings,     # generates the query embeddings
     )
