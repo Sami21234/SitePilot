@@ -171,3 +171,10 @@ async def reset_endpoint():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to reset index: {str(e)}")     # if any error occurs while resetting, it returns a 500 error with the error message.
 
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",      # points to the FastAPI app instance in this file.
+        host="0.0.0.0",     # listens on all network interfaces, making it accessible from outside the container.
+        port=8000,      # runs the server on port 8000.
+        reload=True     # enables auto-reload for development (remove in production).
+    )
