@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SitePilot — Chat with any website</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="app">
+
+        <!-- Header -->
+        <header class="header">
+            <div class="header-inner">
+                <div class="logo">
+                    <span class="logo-icon">✈</span>
+                    <span class="logo-text">SitePilot</span>
+                </div>
+                <div class="status-bar">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span class="status-text" id="statusText">Connecting...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main content -->
+        <main class="main">
+
+            <!-- Crawl Panel -->
+            <section class="crawl-panel" id="crawlPanel">
+                <div class="crawl-inner">
+                    <h1 class="crawl-title">Chat with any website</h1>
+                    <p class="crawl-subtitle">
+                        Enter a URL and SitePilot will read the entire website,
+                        then answer your questions about it instantly.
+                    </p>
+
+                    <div class="url-form">
+                        <div class="url-input-wrapper">
+                            <span class="url-icon">🌐</span>
+                            <input
+                                type="url"
+                                id="urlInput"
+                                class="url-input"
+                                placeholder="https://example.com"
+                                autocomplete="off"
+                            />
+                        </div>
+                        <div class="pages-wrapper">
+                            <label class="pages-label">Max pages</label>
+                            <input
+                                type="number"
+                                id="maxPages"
+                                class="pages-input"
+                                value="10"
+                                min="1"
+                                max="50"
+                            />
+                        </div>
+                        <button class="crawl-btn" id="crawlBtn">
+                            <span id="crawlBtnText">Index Website</span>
+                        </button>
+                    </div>
+
+                    <div class="crawl-status" id="crawlStatus"></div>
+                </div>
+            </section>
+
+            <!-- Chat Panel -->
+            <section class="chat-panel hidden" id="chatPanel">
+
+                <div class="chat-header">
+                    <div class="indexed-info">
+                        <span class="indexed-label">Chatting about:</span>
+                        <span class="indexed-url" id="indexedUrl"></span>
+                    </div>
+                    <button class="reset-btn" id="resetBtn">
+                        Index new site
+                    </button>
+                </div>
+
+                <div class="chat-messages" id="chatMessages">
+                    <div class="welcome-message">
+                        <div class="welcome-icon">🤖</div>
+                        <div class="welcome-text">
+                            Website indexed successfully. Ask me anything about it.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="chat-input-area">
+                    <div class="chat-input-wrapper">
+                        <input
+                            type="text"
+                            id="questionInput"
+                            class="chat-input"
+                            placeholder="Ask a question about this website..."
+                            autocomplete="off"
+                        />
+                        <button class="send-btn" id="sendBtn">
+                            <span>Send</span>
+                        </button>
+                    </div>
+                </div>
+
+            </section>
+
+        </main>
+
+    </div>
+
+    <script src="app.js"></script>
+
+</body>
+</html>
