@@ -286,7 +286,7 @@ body {
 .reset-btn {
     background: none;
     border: 1px solid var(--border);
-    color: var(--text-muted);
+    color: #dfdfe0;
     border-radius: 8px;
     padding: 6px 12px;
     font-size: 13px;
