@@ -96,6 +96,56 @@ def query_collection(question, collection_name = "sitepilot", n_results = 3):
     )
     return results
 
+def query_with_threshold(
+    question,
+    collection_name="sitepilot",
+    n_results=3,
+    threshold=0.45
+):
+    """
+    Queries ChromaDB and filters out low confidence results.
+    Returns chunks only if at least one exceeds the threshold.
+    
+    Returns:
+        dict with 'chunks', 'max_similarity', 'above_threshold'
+    """
+    collection = get_chroma_collection(collection_name)
+
+    question_embedding = model.encode(
+        [question],
+        convert_to_numpy=True
+    )[0].tolist()
+
+    results = collection.query(
+        query_embeddings=[question_embedding],
+        n_results=n_results,
+        include=["documents", "metadatas", "distances"]
+    )
+
+    documents = results["documents"][0]
+    metadatas = results["metadatas"][0]
+    distances = results["distances"][0]
+
+    # Convert distances to similarities
+    similarities = [1 - d for d in distances]
+    max_similarity = max(similarities) if similarities else 0
+
+    # Filter chunks below threshold
+    filtered_chunks = []
+    for doc, meta, sim in zip(documents, metadatas, similarities):
+        if sim >= threshold:
+            filtered_chunks.append({
+                "text": doc,
+                "source": meta.get("source", ""),
+                "similarity": sim
+            })
+
+    return {
+        "chunks": filtered_chunks,
+        "max_similarity": max_similarity,
+        "above_threshold": len(filtered_chunks) > 0
+    }
+
 # main testing block 
 if __name__ == "__main__":
     from crawler import crawl_website

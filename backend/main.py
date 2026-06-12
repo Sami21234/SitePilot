@@ -16,6 +16,12 @@ from crawler import crawl_website       # websites crawler module
 from embedder import embed_and_store, query_collection, get_chroma_collection    # embedding module
 from chunker import chunk_pages      # Text chunking module
 from chain import build_rag_chain, ask     # RAG chain building module
+from embedder import (
+    embed_and_store,
+    query_collection,
+    get_chroma_collection,
+    query_with_threshold  # add this
+)
 
 # Now, crearing the FastAPI app
 app = FastAPI(
@@ -133,27 +139,63 @@ async def crawl_endpoint(request: CrawlRequest):
 async def ask_endpoint(request: QuestionRequest):
     global rag_chain
 
-    if rag_chain is None:      # checks if the RAG chain is ready.
-        raise HTTPException(status_code=400, detail="No website indexed yet. Please crawl a website first.")     # if not ready, returns a 400 error.
-    
-    if not request.question.strip():     # validates that the question is not empty.
-        raise HTTPException(status_code=400, detail="Question cannot be empty.")     # if empty, returns a 400 error.
+    if rag_chain is None:
+        raise HTTPException(
+            status_code=400,
+            detail="No website indexed yet. Please crawl a website first."
+        )
+
+    if not request.question.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Question cannot be empty."
+        )
 
     try:
-        response = ask(rag_chain, request.question)       # gets the answer and sources from the RAG chain.
+        # Step 1: Check retrieval confidence before calling LLM
+        threshold_result = query_with_threshold(
+            request.question,
+            threshold=0.45
+        )
+
+        # Step 2: If no chunks meet threshold, return fallback immediately
+        # This prevents the LLM from hallucinating on poor retrievals
+        if not threshold_result["above_threshold"]:
+            print(
+                f"[Low confidence] max similarity: "
+                f"{threshold_result['max_similarity']:.3f} "
+                f"— skipping LLM"
+            )
+            return AnswerResponse(
+                answer="I don't have information about that on this website.",
+                sources=[],
+                question=request.question
+            )
+
+        # Step 3: Confidence is acceptable, use full RAG chain
+        print(
+            f"[Good confidence] max similarity: "
+            f"{threshold_result['max_similarity']:.3f} "
+            f"— calling LLM"
+        )
+        response = ask(rag_chain, request.question)
 
         unique_sources = list(set(
-            doc.metadata.get("source", "unknown") 
+            doc.metadata.get("source", "unknown")
             for doc in response["sources"]
-        ))     # removes duplicate sources.
+        ))
 
         return AnswerResponse(
             answer=response["answer"],
-            sources=unique_sources,     # uses the unique sources.
+            sources=unique_sources,
             question=request.question
         )
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get answer: {str(e)}")     # if any error occurs while getting the answer, it returns a 500 error with the error message.
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get answer: {str(e)}"
+        )
 
 @app.delete("/reset")
 async def reset_endpoint():
