@@ -1,10 +1,11 @@
+
 # SitePilot ✈ — Chat with Any Website
 
 A fully local, production-ready RAG chatbot that crawls any website
 and answers questions about its content.
 Built with 100% free and open source tools. No API costs. No data leaves your machine.
 
-ss1
+<img width="1907" height="908" alt="sitepilot_ss1" src="https://github.com/user-attachments/assets/d6254608-87e7-4dee-8b1d-214ca56a261f" />
 
 ---
 
@@ -22,13 +23,15 @@ ss1
 ## Live Examples
 
 ### Python.org
-![Python.org Demo](screenshots/python_demo.png)
+
+<img width="1917" height="908" alt="sitepilot_ss2" src="https://github.com/user-attachments/assets/cb54062a-a48a-4eee-8005-8fc45b7e1a44" />
+
 
 ### FastAPI Documentation
-![FastAPI Demo](screenshots/fastapi_demo.png)
+<img width="1918" height="917" alt="sitepilot_ss4" src="https://github.com/user-attachments/assets/2da2db45-ddc8-4afd-ac62-07a54a8ee93a" />
 
 ### Wikipedia
-![Wikipedia Demo](screenshots/wikipedia_demo.png)
+<img width="2190" height="1742" alt="sitepilot_ss5" src="https://github.com/user-attachments/assets/6e7e9e0b-b27f-47a1-bb6c-31f32ca85cac" />
 
 ---
 
