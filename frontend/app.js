@@ -1,4 +1,5 @@
-const API = 'http://localhost:8000';
+// const API = 'http://localhost:8000';
+const API = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
 // DOM elements
 const statusDot = document.getElementById('statusDot');

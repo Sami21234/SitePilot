@@ -44,13 +44,24 @@ def build_rag_chain(collection_name = "sitepilot", n_results = 3, temperature = 
         search_kwargs={"k": n_results,"fetch_k": 10}        #  retrieve top 3 chunks by default.
     )
 
-    # loading LLM
+    USE_HF_API = os.getenv("USE_HF_API", "false").lower() == "true"
 
-    llm = OllamaLLM(       # It creates local AI model
-        model = "mistral",
-        temperature = temperature,      # used to control creativity(Very factual, less hallucination)
-        num_ctx = 4096      # A context window(maximum amount of information llm can process at a single time), where llm can read 4096 tokens at once.
-    )
+    if USE_HF_API:
+        from langchain_huggingface import HuggingFaceEndpoint
+
+        llm = HuggingFaceEndpoint(
+            repo_id= "mistralai/Mistral-7B-Instruct-v0.3",
+            huggingfacehub_api_token=os.getenv("HF_TOKEN"),
+            temperature=temperature,
+            max_new_tokens=512
+        )
+    else:
+    # loading LLM
+        llm = OllamaLLM(       # It creates local AI model
+            model = "mistral",
+            temperature = temperature,      # used to control creativity(Very factual, less hallucination)
+            num_ctx = 4096      # A context window(maximum amount of information llm can process at a single time), where llm can read 4096 tokens at once.
+        )
 
     # Prommpt template for RAG chain, this controls AI behaviour.
     prompt_template = """You are SitePilot, a helpful assistant that answers questions about a website.
