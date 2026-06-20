@@ -448,6 +448,17 @@ async def reset_endpoint():
             detail=f"Failed to reset index: {str(e)}",
         )
 
+@app.get("/test-network")
+async def test_network():
+    import requests
+    try:
+        response = requests.get(
+            "https://api-inference.huggingface.co",
+            timeout=10
+        )
+        return {"status": "reachable", "code": response.status_code}
+    except Exception as e:
+        return {"status": "unreachable", "error": str(e)}
 
 # -------------------------
 # Local run
