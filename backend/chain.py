@@ -144,16 +144,11 @@
 #         print("-" * 60)
 
 import os
-from typing import Optional, List, Any
-import requests as req
-
 from langchain_ollama import OllamaLLM
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_classic.chains import RetrievalQA
 from langchain_core.prompts import PromptTemplate
-from langchain_core.language_models.llms import LLM
-
 from database import get_client
 
 
@@ -164,52 +159,6 @@ CHROMA_DIR = os.path.join(
 )
 
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
-
-
-# class HFInferenceLLM(LLM):
-#     """
-#     Direct HuggingFace Inference API wrapper.
-#     Bypasses LangChain HF integration to avoid provider routing issues.
-#     """
-#     model_id: str = "HuggingFaceH4/zephyr-7b-beta"
-#     api_token: str = ""
-#     max_new_tokens: int = 512
-#     temperature: float = 0.1
-
-#     @property
-#     def _llm_type(self) -> str:
-#         return "huggingface_inference"
-
-#     def _call(
-#         self,
-#         prompt: str,
-#         stop: Optional[List[str]] = None,
-#         **kwargs: Any,
-#     ) -> str:
-#         headers = {
-#             "Authorization": f"Bearer {self.api_token}",
-#             "Content-Type": "application/json"
-#         }
-#         payload = {
-#             "inputs": prompt,
-#             "parameters": {
-#                 "max_new_tokens": self.max_new_tokens,
-#                 "temperature": self.temperature,
-#                 "return_full_text": False
-#             }
-#         }
-#         response = req.post(
-#             f"https://api-inference.huggingface.co/models/{self.model_id}",
-#             headers=headers,
-#             json=payload,
-#             timeout=60
-#         )
-#         response.raise_for_status()
-#         result = response.json()
-
-#         if isinstance(result, list) and len(result) > 0:
-#             return result[0].get("generated_text", "")
-#         return str(result)
 
 
 def build_rag_chain(
@@ -237,14 +186,19 @@ def build_rag_chain(
     USE_HF_API = os.getenv("USE_HF_API", "false").lower() == "true"
 
     if USE_HF_API:
-        from langchain_groq import ChatGroq 
-
-    llm = ChatGroq(
-        model="llama3-8b-8192",
-        api_key=os.getenv("GROQ_API_KEY"),
-        temperature=temperature,
-        max_tokens=512
-    )
+        from langchain_groq import ChatGroq
+        llm = ChatGroq(
+            model="llama-3.1-8b-instant",
+            api_key=os.getenv("GROQ_API_KEY"),
+            temperature=temperature,
+            max_tokens=512
+        )
+    else:
+        llm = OllamaLLM(
+            model="mistral",
+            temperature=temperature,
+            num_ctx=4096,
+        )
 
     prompt = PromptTemplate(
         template="""You are SitePilot, a helpful assistant that answers \
