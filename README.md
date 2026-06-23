@@ -1,4 +1,4 @@
-
+<!--
 # SitePilot ✈ — Chat with Any Website
 
 A fully local, production-ready RAG chatbot that crawls any website
@@ -314,3 +314,420 @@ MIT License — free to use, modify, and distribute.
 - [ChromaDB](https://trychroma.com) for vector storage
 - [Sentence Transformers](https://sbtransformers.net) for embeddings
 - [BeautifulSoup](https://crummy.com/software/BeautifulSoup) for HTML parsing
+
+-->
+
+# SitePilot ✈ — Chat with Any Website
+
+> Turn any website into a conversational AI assistant. Ask questions, 
+> get instant answers grounded in real website content.
+
+**Live Demo:** [sitepilot-gf93.onrender.com](https://sitepilot-gf93.onrender.com)
+
+A fully local, production-ready RAG chatbot that crawls any website
+and answers questions about its content.
+Built with 100% free and open source tools. No API costs. No data leaves your machine.
+
+<img width="1907" height="908" alt="sitepilot_ss1" src="https://github.com/user-attachments/assets/d6254608-87e7-4dee-8b1d-214ca56a261f" />
+
+---
+
+## The Problem SitePilot Solves
+
+### Before SitePilot
+
+Every day, people struggle to extract information from websites:
+
+**The Manual Reading Problem**
+You land on a website with 50 pages of documentation, product 
+descriptions, or support articles. You need one specific answer. 
+You spend 20 minutes clicking through pages, using Ctrl+F, 
+reading irrelevant sections, and still not finding what you need.
+
+**The Customer Support Problem**
+A business has all its policies, products, and FAQs documented 
+on its website. But customers still flood the support team with 
+questions that are already answered — because finding answers 
+manually is too slow and frustrating.
+
+**The Research Problem**
+You need to understand what a company offers, what their pricing 
+is, what their policies are. You visit their website, open 10 tabs, 
+and spend 30 minutes piecing together information scattered across 
+different pages.
+
+**The Language Barrier Problem**
+Non-native speakers struggle to skim websites quickly. Dense 
+technical documentation is inaccessible to non-experts. Jargon-heavy 
+content requires expertise just to navigate.
+
+### After SitePilot
+
+You paste a URL. SitePilot reads the entire website in under 60 
+seconds. Then you just ask questions in plain English and get 
+instant, accurate answers grounded in the actual website content.
+
+No more manual searching. No more missed information. No more wasted time.
+
+| Before SitePilot | After SitePilot |
+|---|---|
+| 20 minutes reading through pages | Answer in seconds |
+| Ctrl+F keyword searching | Ask in plain English |
+| Opening 10 browser tabs | One conversation |
+| Missing information on obscure pages | Full website indexed |
+| Copying and pasting into ChatGPT | Context-aware answers with sources |
+| Answers from general AI knowledge | Answers grounded in real website content |
+| Data sent to third-party APIs | Everything stays on your machine |
+
+---
+
+## What It Does
+
+1. Paste any website URL into SitePilot
+2. The system crawls the entire website automatically
+3. All content is chunked, embedded, and stored in a local vector database
+4. Ask questions in plain English about the website
+5. Get instant answers with source citations
+6. Follow-up questions work naturally — no need to repeat context
+
+---
+
+## Live Examples
+
+### Landing Page
+<img width="1907" height="908" alt="sitepilot_ss1" src="https://github.com/user-attachments/assets/d6254608-87e7-4dee-8b1d-214ca56a261f" />
+
+### Python.org — Official Documentation
+<img width="1917" height="908" alt="sitepilot_ss2" src="https://github.com/user-attachments/assets/cb54062a-a48a-4eee-8005-8fc45b7e1a44" />
+
+### FastAPI Documentation
+<img width="1918" height="917" alt="sitepilot_ss4" src="https://github.com/user-attachments/assets/2da2db45-ddc8-4afd-ac62-07a54a8ee93a" />
+
+### Wikipedia — AI Article
+<img width="2190" height="1742" alt="sitepilot_ss5" src="https://github.com/user-attachments/assets/6e7e9e0b-b27f-47a1-bb6c-31f32ca85cac" />
+
+---
+
+## Tech Stack
+
+| Component | Local Development | Production |
+|---|---|---|
+| Web Crawling | BeautifulSoup4 + Requests | Same |
+| JS Site Support | Playwright + Chromium | Same |
+| Text Chunking | LangChain RecursiveCharacterTextSplitter | Same |
+| Embedding Model | all-MiniLM-L6-v2 (SentenceTransformers) | Same |
+| Vector Database | ChromaDB (local, persistent) | Same |
+| LLM | Mistral 7B via Ollama | Groq LLaMA 3.1 |
+| Orchestration | LangChain RetrievalQA | Same |
+| Backend | FastAPI | Same |
+| Frontend | HTML, CSS, Vanilla JavaScript | Same |
+| Deployment | Local | Docker on Render |
+
+**Total API cost: $0**
+
+---
+
+## Architecture
+
+<div align="center">
+
+```text
+User provides URL
+        ↓
+Smart Crawler (auto-detects static vs JS site)
+        ↓
+BeautifulSoup (static) or Playwright (JS)
+        ↓
+Text Cleaner + Chunker (RecursiveCharacterTextSplitter, 400 chars, 50 overlap)
+        ↓
+Embedding Model (all-MiniLM-L6-v2, 384 dimensions, runs locally
+)
+        ↓
+Vector Store (ChromaDB, cosine similarity, local persistent)
+        ↓
+User asks question
+        ↓
+Similarity Threshold Check (score below 0.45 -> instant fallback, no LLM call)
+        ↓
+ if above threshold, then
+        ↓
+Query Embedding → MMR Search → Top-K Chunks
+        ↓
+ Retrieved Chunks + Prompt Template
+        ↓
+Local LLM (Mistral locally / Groq LLaMA 3.1 in production)
+        ↓
+Answer + Source Citations displayed in chat UI
+```
+
+</div>
+
+---
+
+---
+
+## Key Features
+
+**Smart Crawling**
+Automatically detects JavaScript-rendered sites and switches to 
+Playwright. Static sites use the faster requests-based crawler. 
+No manual configuration needed.
+
+**Hallucination Prevention**
+Similarity threshold filter returns a clear "I don't have 
+information about that" instantly for out-of-scope questions, 
+without calling the LLM at all. Faster response, honest answer.
+
+**Source Citations**
+Every answer includes clickable links to the exact pages the 
+information came from. You can verify every answer instantly.
+
+**Full Data Privacy**
+In local mode, no data leaves your machine. Suitable for 
+sensitive, proprietary, or confidential website content.
+
+**MMR Retrieval**
+Maximal Marginal Relevance retrieval returns diverse chunks 
+instead of redundant similar ones, giving the LLM richer context.
+
+**Dual LLM Configuration**
+Mistral 7B locally via Ollama for privacy-sensitive use cases. 
+Groq LLaMA 3.1 in production via free API for zero-cost deployment. 
+One environment variable switches between them.
+
+**ChromaDB Singleton Pattern**
+Shared database client prevents multi-instance conflicts in 
+FastAPI. Production-grade database management pattern.
+
+---
+
+## Prerequisites
+
+- Python 3.10 or higher
+- Ollama from [ollama.ai](https://ollama.ai) (for local LLM)
+- Git
+- 8GB RAM minimum
+- GPU recommended (tested on RTX 3050)
+
+---
+
+## Installation
+
+### Step 1 — Clone the repository
+
+```bash
+git clone https://github.com/Sami21234/SitePilot.git
+cd SitePilot
+```
+
+### Step 2 — Create virtual environment
+
+```bash
+python -m venv venv
+
+# Windows
+venv\Scripts\activate
+
+# Mac or Linux
+source venv/bin/activate
+```
+
+### Step 3 — Install dependencies
+
+```bash
+pip install -r requirements.txt
+playwright install chromium
+```
+
+### Step 4 — Pull Mistral via Ollama
+
+```bash
+ollama pull mistral
+```
+
+### Step 5 — Start Ollama server
+
+```bash
+# Keep this running in a separate terminal
+ollama serve
+```
+
+### Step 6 — Start SitePilot
+
+```bash
+cd backend
+python main.py
+```
+
+### Step 7 — Open in browser
+
+http://localhost:8000/docs 
+
+---
+
+## How to Use
+
+1. Enter any website URL in the input field
+2. Set max pages (10 is recommended for most sites)
+3. Click **Index Website** and wait 30-60 seconds for indexing
+4. Type your question in plain English
+5. Receive answers with source citations
+6. Ask follow-up questions naturally
+7. Click **Index new site** to switch to a different website
+
+---
+
+## Project Structure
+
+sitepilot/
+
+│
+
+├── backend/
+
+│   ├── crawler.py      # Smart web crawler with JS auto-detection
+
+│   ├── chunker.py      # Text splitting into embeddable chunks
+
+│   ├── database.py     # Singleton ChromaDB client manager
+
+│   ├── embedder.py     # Embedding generation and vector storage
+
+│   ├── chain.py        # LangChain RAG pipeline with dual LLM
+
+│   └── main.py         # FastAPI REST API
+
+│
+
+├── frontend/
+
+│   ├── index.html      # Chat interface
+
+│   ├── style.css       # Professional dark theme
+
+│   └── app.js          # Frontend logic and API calls
+
+│
+
+├── chroma_db/          # Persistent vector storage (auto-created)
+
+├── Dockerfile          # Container definition for deployment
+
+├── .dockerignore       # Files excluded from Docker build
+
+├── requirements.txt    # Python dependencies
+
+└── README.md
+
+---
+
+## Design Decisions
+
+**Why local LLM instead of GPT-4?**
+Privacy and cost. No data leaves your machine. Zero per-query 
+cost. Suitable for sensitive domains including healthcare, legal, 
+and financial content. Mistral 7B delivers strong performance 
+for factual retrieval tasks.
+
+**Why Groq in production instead of HuggingFace?**
+HuggingFace Inference API routes requests through different 
+providers dynamically, causing task-type conflicts and DNS 
+resolution failures on Render's free tier. Groq provides a 
+stable, fast, free endpoint with consistent availability.
+
+**Why all-MiniLM-L6-v2 for embeddings?**
+Fast, lightweight, and accurate for most RAG use cases. Runs 
+fully local with no API key required. 384-dimensional embeddings 
+with strong semantic similarity performance at minimal compute cost.
+
+**Why ChromaDB?**
+Zero infrastructure setup. Persists to disk automatically. 
+Native LangChain integration. Singleton pattern prevents 
+multi-client conflicts in FastAPI across concurrent requests.
+
+**Why MMR over pure similarity search?**
+Pure similarity returns redundant chunks from the same page 
+section. MMR balances relevance with diversity, giving the LLM 
+richer and more varied context for better answers.
+
+**Why similarity threshold 0.45?**
+Below this score, retrieved chunks are semantically unrelated 
+to the question. Short-circuiting the LLM call at this point 
+is faster and more honest than generating a hallucinated answer 
+from irrelevant context.
+
+**Why chunk size 400 with 50 character overlap?**
+Large enough to preserve complete sentences and semantic context. 
+Small enough to keep embeddings focused and retrieval precise. 
+Overlap prevents critical information from being lost at chunk 
+boundaries — a key lesson learned during testing.
+
+---
+
+## Deployment
+
+### Deploy to Render (Free)
+
+**Step 1** — Fork this repository to your GitHub account
+
+**Step 2** — Sign up at [render.com](https://render.com)
+
+**Step 3** — Create a new Web Service connected to your repository
+
+**Step 4** — Add environment variables in Render dashboard:
+> USE_HF_API = true, <br>
+> GROQ_API_KEY = your_groq_api_key
+
+Get a free Groq API key at [console.groq.com](https://console.groq.com)
+
+**Step 5** — Render auto-detects the Dockerfile and deploys
+
+Your app will be live at `https://your-service-name.onrender.com`
+
+Note: Render's free tier spins down after 15 minutes of inactivity.
+First request after idle takes 30-60 seconds to wake up.
+
+---
+
+## Known Limitations
+
+- JavaScript-heavy websites may return incomplete content with 
+  BeautifulSoup — Playwright handles detected JS frameworks 
+  automatically but some dynamic content may still be missed
+- Cross-page content contamination can occur on e-commerce sites 
+  where "recently viewed" sections embed other products' data 
+  into unrelated pages
+- Similarity threshold may reject valid follow-up questions that 
+  lack explicit keywords — conversation context is not factored 
+  into threshold scoring
+- Render free tier has cold start delay of 30-60 seconds after 
+  inactivity
+- Very large websites should use max_pages limit to prevent 
+  excessive crawl and embedding time
+
+---
+
+## Author
+
+Built by <b>MOHD. SAMI</b><br>
+GitHub: [Sami2123](https://github.com/Sami21234)
+LinkedIn: [mohd-sami-dev](https://linkedin.com/in/mohd-sami-dev)
+
+---
+
+## License
+
+MIT License — free to use, modify, and distribute.
+
+---
+## Acknowledgements
+
+- [LangChain](https://langchain.com) for LLM orchestration
+- [Ollama](https://ollama.ai) for local LLM runtime
+- [Groq](https://groq.com) for fast free inference API
+- [ChromaDB](https://trychroma.com) for vector storage
+- [Sentence Transformers](https://sbert.net) for embeddings
+- [BeautifulSoup](https://crummy.com/software/BeautifulSoup) 
+  for HTML parsing
+- [Playwright](https://playwright.dev) for JavaScript site support
+- [Render](https://render.com) for free cloud deployment
