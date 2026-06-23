@@ -226,6 +226,8 @@
 
 import os
 import sys
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -329,6 +331,8 @@ async def health_check():
     }
 
 
+executor = ThreadPoolExecutor(max_workers=2)
+
 @app.post("/crawl", response_model=CrawlResponse)
 async def crawl_endpoint(request: CrawlRequest):
     global current_url
@@ -340,35 +344,35 @@ async def crawl_endpoint(request: CrawlRequest):
         )
 
     try:
-        # 1. Crawl
         print(f"[API] Crawling: {request.url}")
-        pages = crawl_website(
-            request.url,
-            max_pages=request.max_pages,
-        )
 
-        if not pages:
+        # Run the entire crawl pipeline in a thread
+        # This allows Playwright sync API to work inside FastAPI's asyncio loop
+        loop = asyncio.get_event_loop()
+
+        def run_pipeline():
+            pages = crawl_website(request.url, max_pages=request.max_pages)
+            if not pages:
+                return None, None
+            chunks = chunk_pages(pages)
+            if not chunks:
+                return pages, None
+            embed_and_store(chunks, collection_name="sitepilot")
+            return pages, chunks
+
+        pages, chunks = await loop.run_in_executor(executor, run_pipeline)
+
+        if pages is None:
             raise HTTPException(
                 status_code=422,
                 detail="No pages could be crawled from this URL",
             )
 
-        # 2. Chunk
-        print(f"[API] Chunking {len(pages)} pages")
-        chunks = chunk_pages(pages)
-
-        if not chunks:
+        if chunks is None:
             raise HTTPException(
                 status_code=422,
                 detail="No content could be extracted",
             )
-
-        # 3. Embed
-        print(f"[API] Embedding {len(chunks)} chunks")
-        embed_and_store(
-            chunks,
-            collection_name="sitepilot",
-        )
 
         current_url = request.url
 
