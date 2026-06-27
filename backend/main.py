@@ -224,6 +224,258 @@
 #     )
 
 
+# import os
+# import sys
+# import asyncio
+# from concurrent.futures import ThreadPoolExecutor
+# from fastapi import FastAPI, HTTPException
+# from fastapi.middleware.cors import CORSMiddleware
+# from fastapi.staticfiles import StaticFiles
+# from fastapi.responses import FileResponse
+# from pydantic import BaseModel
+# import uvicorn
+
+# # Add backend folder to Python path
+# sys.path.append(os.path.dirname(__file__))
+
+# # ---- Internal imports ----
+# from crawler import crawl_website
+# from chunker import chunk_pages
+# from embedder import (
+#     embed_and_store,
+#     get_chroma_collection,
+#     query_with_threshold,
+# )
+# from chain import get_answer   # ✅ ONLY import from chain.py
+
+
+# # -------------------------
+# # FastAPI App
+# # -------------------------
+
+# app = FastAPI(
+#     title="SitePilot API",
+#     description="RAG-powered chatbot for any website",
+#     version="1.0.0",
+# )
+
+# # CORS
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=["*"],
+#     allow_credentials=True,
+#     allow_methods=["*"],
+#     allow_headers=["*"],
+# )
+
+# # Frontend
+# FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
+# if os.path.exists(FRONTEND_DIR):
+#     app.mount(
+#         "/static",
+#         StaticFiles(directory=FRONTEND_DIR),
+#         name="static",
+#     )
+
+# current_url = None
+
+
+# # -------------------------
+# # Request Models
+# # -------------------------
+
+# class CrawlRequest(BaseModel):
+#     url: str
+#     max_pages: int = 10
+
+
+# class QuestionRequest(BaseModel):
+#     question: str
+
+
+# # -------------------------
+# # Response Models
+# # -------------------------
+
+# class CrawlResponse(BaseModel):
+#     success: bool
+#     message: str
+#     pages_crawled: int
+#     chunks_created: int
+#     url: str
+
+
+# class AnswerResponse(BaseModel):
+#     answer: str
+#     sources: list[str]
+#     question: str
+
+
+# # -------------------------
+# # Routes
+# # -------------------------
+
+# @app.get("/")
+# async def serve_frontend():
+#     index_path = os.path.join(FRONTEND_DIR, "index.html")
+#     if os.path.exists(index_path):
+#         return FileResponse(index_path)
+#     return {"message": "SitePilot API running", "status": "ok"}
+
+
+# @app.get("/health")
+# async def health_check():
+#     return {
+#         "status": "healthy",
+#         "indexed_url": current_url,
+#     }
+
+
+# executor = ThreadPoolExecutor(max_workers=2)
+
+# @app.post("/crawl", response_model=CrawlResponse)
+# async def crawl_endpoint(request: CrawlRequest):
+#     global current_url
+
+#     if not request.url.startswith(("http://", "https://")):
+#         raise HTTPException(
+#             status_code=400,
+#             detail="URL must start with http:// or https://",
+#         )
+
+#     try:
+#         print(f"[API] Crawling: {request.url}")
+
+#         # Run the entire crawl pipeline in a thread
+#         # This allows Playwright sync API to work inside FastAPI's asyncio loop
+#         loop = asyncio.get_event_loop()
+
+#         def run_pipeline():
+#             pages = crawl_website(request.url, max_pages=request.max_pages)
+#             if not pages:
+#                 return None, None
+#             chunks = chunk_pages(pages)
+#             if not chunks:
+#                 return pages, None
+#             embed_and_store(chunks, collection_name="sitepilot")
+#             return pages, chunks
+
+#         pages, chunks = await loop.run_in_executor(executor, run_pipeline)
+
+#         if pages is None:
+#             raise HTTPException(
+#                 status_code=422,
+#                 detail="No pages could be crawled from this URL",
+#             )
+
+#         if chunks is None:
+#             raise HTTPException(
+#                 status_code=422,
+#                 detail="No content could be extracted",
+#             )
+
+#         current_url = request.url
+
+#         return CrawlResponse(
+#             success=True,
+#             message=f"Successfully indexed {request.url}",
+#             pages_crawled=len(pages),
+#             chunks_created=len(chunks),
+#             url=request.url,
+#         )
+
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=500,
+#             detail=f"Crawling failed: {str(e)}",
+#         )
+
+
+# @app.post("/ask", response_model=AnswerResponse)
+# async def ask_endpoint(request: QuestionRequest):
+#     if not request.question.strip():
+#         raise HTTPException(
+#             status_code=400,
+#             detail="Question cannot be empty",
+#         )
+
+#     try:
+#         # 1. Retrieval confidence check
+#         threshold_result = query_with_threshold(
+#             request.question,
+#             threshold=0.45,
+#         )
+
+#         if not threshold_result["above_threshold"]:
+#             return AnswerResponse(
+#                 answer="I don't have information about that on this website.",
+#                 sources=[],
+#                 question=request.question,
+#             )
+
+#         # 2. Call RAG
+#         answer, sources = get_answer(request.question)
+
+#         return AnswerResponse(
+#             answer=answer,
+#             sources=sources,
+#             question=request.question,
+#         )
+
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=500,
+#             detail=f"Failed to get answer: {str(e)}",
+#         )
+
+
+# @app.delete("/reset")
+# async def reset_endpoint():
+#     global current_url
+
+#     try:
+#         collection = get_chroma_collection("sitepilot")
+#         collection.delete(where={"source": {"$ne": ""}})
+
+#         current_url = None
+
+#         return {
+#             "success": True,
+#             "message": "Index cleared successfully.",
+#         }
+
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=500,
+#             detail=f"Failed to reset index: {str(e)}",
+#         )
+
+# @app.get("/test-network")
+# async def test_network():
+#     import requests
+#     try:
+#         response = requests.get(
+#             "https://api-inference.huggingface.co",
+#             timeout=10
+#         )
+#         return {"status": "reachable", "code": response.status_code}
+#     except Exception as e:
+#         return {"status": "unreachable", "error": str(e)}
+
+# # -------------------------
+# # Local run
+# # -------------------------
+
+# if __name__ == "__main__":
+#     uvicorn.run(
+#         "main:app",
+#         host="0.0.0.0",
+#         port=8000,
+#         reload=True,
+#     )
+
 import os
 import sys
 import asyncio
@@ -235,10 +487,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import uvicorn
 
-# Add backend folder to Python path
 sys.path.append(os.path.dirname(__file__))
 
-# ---- Internal imports ----
 from crawler import crawl_website
 from chunker import chunk_pages
 from embedder import (
@@ -246,12 +496,7 @@ from embedder import (
     get_chroma_collection,
     query_with_threshold,
 )
-from chain import get_answer   # ✅ ONLY import from chain.py
-
-
-# -------------------------
-# FastAPI App
-# -------------------------
+from chain import get_answer
 
 app = FastAPI(
     title="SitePilot API",
@@ -259,7 +504,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -268,8 +512,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Frontend
-FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
+FRONTEND_DIR = os.path.join(
+    os.path.dirname(__file__), "..", "frontend"
+)
+
 if os.path.exists(FRONTEND_DIR):
     app.mount(
         "/static",
@@ -277,12 +523,9 @@ if os.path.exists(FRONTEND_DIR):
         name="static",
     )
 
+executor = ThreadPoolExecutor(max_workers=2)
 current_url = None
 
-
-# -------------------------
-# Request Models
-# -------------------------
 
 class CrawlRequest(BaseModel):
     url: str
@@ -292,10 +535,6 @@ class CrawlRequest(BaseModel):
 class QuestionRequest(BaseModel):
     question: str
 
-
-# -------------------------
-# Response Models
-# -------------------------
 
 class CrawlResponse(BaseModel):
     success: bool
@@ -310,10 +549,6 @@ class AnswerResponse(BaseModel):
     sources: list[str]
     question: str
 
-
-# -------------------------
-# Routes
-# -------------------------
 
 @app.get("/")
 async def serve_frontend():
@@ -331,8 +566,6 @@ async def health_check():
     }
 
 
-executor = ThreadPoolExecutor(max_workers=2)
-
 @app.post("/crawl", response_model=CrawlResponse)
 async def crawl_endpoint(request: CrawlRequest):
     global current_url
@@ -346,12 +579,13 @@ async def crawl_endpoint(request: CrawlRequest):
     try:
         print(f"[API] Crawling: {request.url}")
 
-        # Run the entire crawl pipeline in a thread
-        # This allows Playwright sync API to work inside FastAPI's asyncio loop
         loop = asyncio.get_event_loop()
 
         def run_pipeline():
-            pages = crawl_website(request.url, max_pages=request.max_pages)
+            pages = crawl_website(
+                request.url,
+                max_pages=request.max_pages
+            )
             if not pages:
                 return None, None
             chunks = chunk_pages(pages)
@@ -360,7 +594,9 @@ async def crawl_endpoint(request: CrawlRequest):
             embed_and_store(chunks, collection_name="sitepilot")
             return pages, chunks
 
-        pages, chunks = await loop.run_in_executor(executor, run_pipeline)
+        pages, chunks = await loop.run_in_executor(
+            executor, run_pipeline
+        )
 
         if pages is None:
             raise HTTPException(
@@ -402,7 +638,6 @@ async def ask_endpoint(request: QuestionRequest):
         )
 
     try:
-        # 1. Retrieval confidence check
         threshold_result = query_with_threshold(
             request.question,
             threshold=0.45,
@@ -415,12 +650,11 @@ async def ask_endpoint(request: QuestionRequest):
                 question=request.question,
             )
 
-        # 2. Call RAG
-        answer = get_answer(request.question)
+        answer, sources = get_answer(request.question)
 
         return AnswerResponse(
             answer=answer,
-            sources=[],  # sources optional for now
+            sources=sources,
             question=request.question,
         )
 
@@ -438,13 +672,8 @@ async def reset_endpoint():
     try:
         collection = get_chroma_collection("sitepilot")
         collection.delete(where={"source": {"$ne": ""}})
-
         current_url = None
-
-        return {
-            "success": True,
-            "message": "Index cleared successfully.",
-        }
+        return {"success": True, "message": "Index cleared successfully."}
 
     except Exception as e:
         raise HTTPException(
@@ -452,21 +681,6 @@ async def reset_endpoint():
             detail=f"Failed to reset index: {str(e)}",
         )
 
-@app.get("/test-network")
-async def test_network():
-    import requests
-    try:
-        response = requests.get(
-            "https://api-inference.huggingface.co",
-            timeout=10
-        )
-        return {"status": "reachable", "code": response.status_code}
-    except Exception as e:
-        return {"status": "unreachable", "error": str(e)}
-
-# -------------------------
-# Local run
-# -------------------------
 
 if __name__ == "__main__":
     uvicorn.run(

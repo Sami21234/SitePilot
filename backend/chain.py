@@ -143,6 +143,124 @@
 #         print(f"Sources: {response['sources']}")        # shows the retrieved chunks(pages) that were used to generate the answer.
 #         print("-" * 60)
 
+# import os
+# from langchain_ollama import OllamaLLM
+# from langchain_chroma import Chroma
+# from langchain_huggingface import HuggingFaceEmbeddings
+# from langchain_classic.chains import RetrievalQA
+# from langchain_core.prompts import PromptTemplate
+# from database import get_client
+
+
+# CHROMA_DIR = os.path.join(
+#     os.path.dirname(__file__),
+#     "..",
+#     "chroma_db"
+# )
+
+# EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+
+
+# def build_rag_chain(
+#     collection_name: str = "sitepilot",
+#     n_results: int = 3,
+#     temperature: float = 0.1,
+# ):
+#     embeddings = HuggingFaceEmbeddings(
+#         model_name=EMBEDDING_MODEL,
+#         model_kwargs={"device": "cpu"},
+#         encode_kwargs={"normalize_embeddings": True},
+#     )
+
+#     vectorstore = Chroma(
+#         client=get_client(),
+#         collection_name=collection_name,
+#         embedding_function=embeddings,
+#     )
+
+#     retriever = vectorstore.as_retriever(
+#         search_type="mmr",
+#         search_kwargs={"k": n_results, "fetch_k": 10},
+#     )
+
+#     USE_HF_API = os.getenv("USE_HF_API", "false").lower() == "true"
+
+#     if USE_HF_API:
+#         from langchain_groq import ChatGroq
+#         llm = ChatGroq(
+#             model="llama-3.1-8b-instant",
+#             api_key=os.getenv("GROQ_API_KEY"),
+#             temperature=temperature,
+#             max_tokens=512
+#         )
+#     else:
+#         llm = OllamaLLM(
+#             model="mistral",
+#             temperature=temperature,
+#             num_ctx=4096,
+#         )
+
+#     prompt = PromptTemplate(
+#         template="""You are SitePilot, a helpful assistant that answers \
+# questions using ONLY the provided context.
+
+# Rules:
+# - Use only the context below to answer
+# - If the answer is not in the context, say exactly:
+#   "I don't have information about that on this website."
+# - Do not make up information
+# - Be concise and direct
+
+# Context:
+# {context}
+
+# Question:
+# {question}
+
+# Answer:""",
+#         input_variables=["context", "question"],
+#     )
+
+#     chain = RetrievalQA.from_chain_type(
+#         llm=llm,
+#         chain_type="stuff",
+#         retriever=retriever,
+#         return_source_documents=True,
+#         chain_type_kwargs={"prompt": prompt},
+#     )
+
+#     return chain
+
+
+# _chain = None
+
+
+# def get_answer(question: str) -> str:
+#     global _chain
+#     if _chain is None:
+#         _chain = build_rag_chain()
+#     result = _chain.invoke({"query": question})
+
+#     answer =  result["result"]
+#     sources = list(set(
+#         doc.metadata.get("source", "unknown")
+#         for doc in result["source_documents"]
+#         if doc.metadata.get("source")
+#     ))
+
+
+
+# if __name__ == "__main__":
+#     test_questions = [
+#         "Tell me about Sharp Objects",
+#         "What is the most expensive book?",
+#         "Do you sell electronics?",
+#     ]
+#     for q in test_questions:
+#         print("\nQ:", q)
+#         print("A:", get_answer(q))
+#         print("-" * 50)
+
 import os
 from langchain_ollama import OllamaLLM
 from langchain_chroma import Chroma
@@ -150,7 +268,6 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_classic.chains import RetrievalQA
 from langchain_core.prompts import PromptTemplate
 from database import get_client
-
 
 CHROMA_DIR = os.path.join(
     os.path.dirname(__file__),
@@ -183,22 +300,11 @@ def build_rag_chain(
         search_kwargs={"k": n_results, "fetch_k": 10},
     )
 
-    USE_HF_API = os.getenv("USE_HF_API", "false").lower() == "true"
-
-    if USE_HF_API:
-        from langchain_groq import ChatGroq
-        llm = ChatGroq(
-            model="llama-3.1-8b-instant",
-            api_key=os.getenv("GROQ_API_KEY"),
-            temperature=temperature,
-            max_tokens=512
-        )
-    else:
-        llm = OllamaLLM(
-            model="mistral",
-            temperature=temperature,
-            num_ctx=4096,
-        )
+    llm = OllamaLLM(
+        model="mistral",
+        temperature=temperature,
+        num_ctx=4096,
+    )
 
     prompt = PromptTemplate(
         template="""You are SitePilot, a helpful assistant that answers \
@@ -235,12 +341,21 @@ Answer:""",
 _chain = None
 
 
-def get_answer(question: str) -> str:
+def get_answer(question: str):
     global _chain
     if _chain is None:
         _chain = build_rag_chain()
+
     result = _chain.invoke({"query": question})
-    return result["result"]
+
+    answer = result["result"]
+    sources = list(set(
+        doc.metadata.get("source", "")
+        for doc in result["source_documents"]
+        if doc.metadata.get("source")
+    ))
+
+    return answer, sources
 
 
 if __name__ == "__main__":
@@ -251,5 +366,7 @@ if __name__ == "__main__":
     ]
     for q in test_questions:
         print("\nQ:", q)
-        print("A:", get_answer(q))
+        answer, sources = get_answer(q)
+        print("A:", answer)
+        print("Sources:", sources)
         print("-" * 50)
