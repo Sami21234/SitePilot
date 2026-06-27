@@ -319,10 +319,9 @@ MIT License — free to use, modify, and distribute.
 
 # SitePilot ✈ — Chat with Any Website
 
-> Turn any website into a conversational AI assistant. Ask questions, 
+> Turn any website into a conversational AI assistant. Ask questions in plain English, 
 > get instant answers grounded in real website content.
 
-**Live Demo:** [sitepilot-gf93.onrender.com](https://sitepilot-gf93.onrender.com)
 
 A fully local, production-ready RAG chatbot that crawls any website
 and answers questions about its content.
@@ -434,7 +433,7 @@ No more manual searching. No more missed information. No more wasted time.
 ```text
 User provides URL
         ↓
-Smart Crawler (auto-detects static vs JS site)
+Smart Crawler (auto-detects static vs JS rendered sites)
         ↓
 BeautifulSoup (static) or Playwright (JS)
         ↓
@@ -455,7 +454,7 @@ Query Embedding → MMR Search → Top-K Chunks
         ↓
  Retrieved Chunks + Prompt Template
         ↓
-Local LLM (Mistral locally / Groq LLaMA 3.1 in production)
+Local LLM (Mistral7B locally)
         ↓
 Answer + Source Citations displayed in chat UI
 ```
@@ -561,7 +560,7 @@ python main.py
 
 ### Step 7 — Open in browser
 
-http://localhost:8000/docs 
+http://localhost:8000
 
 ---
 
@@ -593,7 +592,7 @@ sitepilot/
 
 │   ├── embedder.py     # Embedding generation and vector storage
 
-│   ├── chain.py        # LangChain RAG pipeline with dual LLM
+│   ├── chain.py        # LangChain RAG pipeline
 
 │   └── main.py         # FastAPI REST API
 
@@ -611,99 +610,54 @@ sitepilot/
 
 ├── chroma_db/          # Persistent vector storage (auto-created)
 
-├── Dockerfile          # Container definition for deployment
-
-├── .dockerignore       # Files excluded from Docker build
-
 ├── requirements.txt    # Python dependencies
 
 └── README.md
 
 ---
 
-## Design Decisions
+## Key Engineering Decisions
 
-**Why local LLM instead of GPT-4?**
+**Why local LLM?**
 Privacy and cost. No data leaves your machine. Zero per-query 
-cost. Suitable for sensitive domains including healthcare, legal, 
-and financial content. Mistral 7B delivers strong performance 
-for factual retrieval tasks.
+cost. Suitable for sensitive content including healthcare, legal, 
+and financial data. Mistral 7B delivers strong performance for 
+factual RAG retrieval tasks.
 
-**Why Groq in production instead of HuggingFace?**
-HuggingFace Inference API routes requests through different 
-providers dynamically, causing task-type conflicts and DNS 
-resolution failures on Render's free tier. Groq provides a 
-stable, fast, free endpoint with consistent availability.
+**Why ChromaDB singleton pattern?**
+FastAPI handles concurrent requests. Multiple PersistentClient 
+instances pointing to the same database path cause conflicts. 
+One shared client managed at module level prevents this.
 
-**Why all-MiniLM-L6-v2 for embeddings?**
-Fast, lightweight, and accurate for most RAG use cases. Runs 
-fully local with no API key required. 384-dimensional embeddings 
-with strong semantic similarity performance at minimal compute cost.
-
-**Why ChromaDB?**
-Zero infrastructure setup. Persists to disk automatically. 
-Native LangChain integration. Singleton pattern prevents 
-multi-client conflicts in FastAPI across concurrent requests.
-
-**Why MMR over pure similarity search?**
-Pure similarity returns redundant chunks from the same page 
-section. MMR balances relevance with diversity, giving the LLM 
-richer and more varied context for better answers.
+**Why MMR retrieval?**
+Pure similarity search returns redundant chunks from the same 
+section. MMR balances relevance with diversity, giving Mistral 
+richer context across different parts of the website.
 
 **Why similarity threshold 0.45?**
-Below this score, retrieved chunks are semantically unrelated 
-to the question. Short-circuiting the LLM call at this point 
-is faster and more honest than generating a hallucinated answer 
-from irrelevant context.
+Out-of-scope questions score below 0.45. Short-circuiting the 
+LLM call at this point is faster and more honest than generating 
+a hallucinated answer from irrelevant chunks.
 
-**Why chunk size 400 with 50 character overlap?**
-Large enough to preserve complete sentences and semantic context. 
-Small enough to keep embeddings focused and retrieval precise. 
-Overlap prevents critical information from being lost at chunk 
-boundaries — a key lesson learned during testing.
-
----
-
-## Deployment
-
-### Deploy to Render (Free)
-
-**Step 1** — Fork this repository to your GitHub account
-
-**Step 2** — Sign up at [render.com](https://render.com)
-
-**Step 3** — Create a new Web Service connected to your repository
-
-**Step 4** — Add environment variables in Render dashboard:
-> USE_HF_API = true, <br>
-> GROQ_API_KEY = your_groq_api_key
-
-Get a free Groq API key at [console.groq.com](https://console.groq.com)
-
-**Step 5** — Render auto-detects the Dockerfile and deploys
-
-Your app will be live at `https://your-service-name.onrender.com`
-
-Note: Render's free tier spins down after 15 minutes of inactivity.
-First request after idle takes 30-60 seconds to wake up.
+**Why 400 character chunks with 50 overlap?**
+Preserves complete sentences and semantic context while keeping 
+embeddings focused. Overlap prevents critical information at 
+chunk boundaries from being lost — a lesson learned by testing 
+price queries that span sentence boundaries.
 
 ---
 
 ## Known Limitations
 
-- JavaScript-heavy websites may return incomplete content with 
-  BeautifulSoup — Playwright handles detected JS frameworks 
-  automatically but some dynamic content may still be missed
-- Cross-page content contamination can occur on e-commerce sites 
-  where "recently viewed" sections embed other products' data 
-  into unrelated pages
-- Similarity threshold may reject valid follow-up questions that 
-  lack explicit keywords — conversation context is not factored 
-  into threshold scoring
-- Render free tier has cold start delay of 30-60 seconds after 
-  inactivity
-- Very large websites should use max_pages limit to prevent 
-  excessive crawl and embedding time
+- JavaScript-rendered navigation may limit page discovery even 
+  with Playwright — some frameworks inject links dynamically 
+  after the initial render completes
+- Similarity threshold may reject valid follow-up questions 
+  using pronouns like "it" or "that" — conversation context 
+  is not factored into threshold scoring
+- Very large websites should use max_pages to limit crawl time
+- LLM response speed depends on hardware — RTX 3050 gives 
+  acceptable performance with Mistral 7B
 
 ---
 
@@ -724,10 +678,8 @@ MIT License — free to use, modify, and distribute.
 
 - [LangChain](https://langchain.com) for LLM orchestration
 - [Ollama](https://ollama.ai) for local LLM runtime
-- [Groq](https://groq.com) for fast free inference API
 - [ChromaDB](https://trychroma.com) for vector storage
 - [Sentence Transformers](https://sbert.net) for embeddings
 - [BeautifulSoup](https://crummy.com/software/BeautifulSoup) 
   for HTML parsing
 - [Playwright](https://playwright.dev) for JavaScript site support
-- [Render](https://render.com) for free cloud deployment
